@@ -21,6 +21,7 @@ class malesNgodingController extends Controller
         $f_insert_param='';
         $f_insert_filed='';
         $f_insert_value='';
+        $f_select = '';
         $last = count($data) - 1; 
         $id = $data[0]->column_name;
         $f_update_query='';
@@ -36,6 +37,7 @@ class malesNgodingController extends Controller
             $model->{$item->column_name} = $this->type_data($item->data_type);
             // if(!$id==$item->column_name){
                 $f_insert_param .= ($key==$last)?'_'.$item->column_name.' '.$item->data_type:'_'.$item->column_name.' '.$item->data_type.',';
+                $f_select .= ($key==$last)?$item->column_name.' '.$item->data_type:$item->column_name.' '.$item->data_type.',';
                 $f_insert_filed .= ($key==$last)?$item->column_name:$item->column_name.',';
                 $f_insert_value .= ($key==$last)?'_'.$item->column_name:'_'.$item->column_name.',';
             // }
@@ -104,7 +106,7 @@ class malesNgodingController extends Controller
                         
                         BEGIN
                         
-                        DELETE FROM tr_rm_sbar
+                        DELETE FROM $request->table
                         WHERE $id = _$id
                         returning $id into lastid;
                         
@@ -122,7 +124,7 @@ class malesNgodingController extends Controller
         
         $f_getall = "
             create function ".$request->table."_getall()
-                returns TABLE($f_insert_param)
+                returns TABLE($f_select)
                 language plpgsql
             as
             $$
@@ -138,7 +140,7 @@ class malesNgodingController extends Controller
         
         $f_getbyid = "
             create function ".$request->table."_getbyid(_$id bigint)
-                returns TABLE($f_insert_param)
+                returns TABLE($f_select)
                 language plpgsql
             as
             $$
@@ -155,7 +157,7 @@ class malesNgodingController extends Controller
         ";
         
         $dao_insert = "
-            public async Task<short>InsertAssesmentNyeri(".$request->table."_model_insert param)
+            public async Task<short>insert(".$request->table."_insert_model param)
             {
                 try
                 {
@@ -173,11 +175,11 @@ class malesNgodingController extends Controller
         ";
         
         $dao_getbyid ="
-            public async Task<List<".$request->table."_model_get>> GetById(long $id)
+            public async Task<List<".$request->table."_get_model>> GetById(long $id)
             {
     	        try
     	        {
-    		        return await this.db.QuerySPtoList<".$request->table."_model_get>(".'"'."".$request->table."_getbyid".'"'.", new
+    		        return await this.db.QuerySPtoList<".$request->table."_get_model>(".'"'."".$request->table."_getbyid".'"'.", new
     		        {
     			        _$id = $id
     		        });
