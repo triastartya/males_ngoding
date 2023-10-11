@@ -229,4 +229,9 @@ class malesNgodingController extends Controller
                 return 0;
           }
     }
+    
+    public function tes_fnc(Request $request){
+        $data = DB::select("SELECT * FROM ".$request->func." limit 1",[]);
+        return response()->json($data);
+    }
 }

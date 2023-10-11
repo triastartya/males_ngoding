@@ -19,3 +19,8 @@ Route::get('/', function () {
 });
 
 Route::get('males_ngoding/{table}',[malesNgodingController::class,'males_ngoding']);
+
+Route::get('males_ngoding_fnc', function () {
+    return view('function');
+});
+
