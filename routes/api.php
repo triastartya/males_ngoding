@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\malesNgodingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -20,3 +21,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::post('response_fnc',[malesNgodingController::class,'tes_fnc']);
+Route::get('import/pasien',[ImportController::class,'pasien']);
+Route::get('import/obat',[ImportController::class,'obat']); 
+Route::get('import/groupsatuan',[ImportController::class,'group_satuan']); 
+Route::get('import/stok',[ImportController::class,'stok']); 
+
+
