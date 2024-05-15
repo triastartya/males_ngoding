@@ -26,88 +26,94 @@ class ImportController extends Controller
     public function pasien(){
         set_time_limit(0);
         $data = DB::select("
-        SELECT * FROM maspasien order by username offset 5893
+            SELECT * FROM maspasien order by username
         ",[]);
         foreach ($data as $key => $value) {
             DB::beginTransaction();
             try {
-                //insert pasien 
-                $person = new PersonModel();
-                $person->id_jenis_identitas = 1;
-                if(TRIM($value->no_ktp)!="-"){
-                    $person->no_identitas = $value->no_ktp;
+                $cek_pasien=PasienModel::where('no_rekam_medis',$value->username)->first();
+                if($cek_pasien){
+
                 }else{
-                    $person->no_identitas = Str::uuid();
-                }
-                $person->no_kartu_keluarga = $value->no_kk;
-                $person->nama_depan = $value->name;
-                $person->nama_belakang = $value->nm_blk;
-                if($value->jen_kel=="Wanita"){
-                    $person->gender = "P";
-                }else{
-                    $person->gender = "L";
-                }
-                $person->tempat_lahir = $value->tmp_lhr;
-                $person->tanggal_lahir = $value->tgl_lhr;
-                $person->id_job_type = 22;
-                $person->id_marital_status = 5;
-                $person->id_agama = 7;
-                $person->is_active = true;
-                $person->user_created = 1;
-                $person->time_created = date('Y-m-d H:i:s');
-                $person->save();
-                $person->id_person;
+                    //insert pasien 
+                    $person = new PersonModel();
+                    $person->id_jenis_identitas = 1;
+                    if(TRIM($value->no_ktp)!="-"){
+                        $person->no_identitas = $value->no_ktp;
+                    }else{
+                        $person->no_identitas = Str::uuid();
+                    }
+                    $person->no_kartu_keluarga = $value->no_kk;
+                    $person->nama_depan = $value->name;
+                    $person->nama_belakang = $value->nm_blk;
+                    if($value->jen_kel=="Wanita"){
+                        $person->gender = "P";
+                    }else{
+                        $person->gender = "L";
+                    }
+                    $person->tempat_lahir = $value->tmp_lhr;
+                    $person->tanggal_lahir = $value->tgl_lhr;
+                    $person->id_job_type = 22;
+                    $person->id_marital_status = 5;
+                    $person->id_agama = 7;
+                    $person->is_active = true;
+                    $person->user_created = 1;
+                    $person->time_created = date('Y-m-d H:i:s');
+                    $person->save();
+                    $person->id_person;
 
-                $tipe = new tipePasienModel();
-                $tipe->id_person = $person->id_person;
-                $tipe->id_tipe_person =  1;
-                $tipe->user_created = 1;
-                $tipe->time_created = date('Y-m-d H:i:s');
-                $tipe->save();
+                    $tipe = new tipePasienModel();
+                    $tipe->id_person = $person->id_person;
+                    $tipe->id_tipe_person =  1;
+                    $tipe->user_created = 1;
+                    $tipe->time_created = date('Y-m-d H:i:s');
+                    $tipe->save();
 
-                $pasien = new PasienModel();
-                $pasien->id_person = $person->id_person;
-                $pasien->no_rekam_medis = $value->username;
-                $pasien->visit_count = 0;
-                $pasien->save();
+                    $pasien = new PasienModel();
+                    $pasien->id_person = $person->id_person;
+                    $pasien->no_rekam_medis = $value->username;
+                    $pasien->visit_count = 0;
+                    $pasien->save();
 
-                if(TRIM($value->no_bpjs) != "" OR TRIM($value->no_bpjs) != "-"){
+                    if(TRIM($value->no_bpjs) != "" OR TRIM($value->no_bpjs) != "-"){
+                        $debitur_bpjs = new DebiturPasienModel();
+                        $debitur_bpjs->id_person = $person->id_person;
+                        $debitur_bpjs->id_debitur = 1;
+                        $debitur_bpjs->no_member = $value->no_bpjs;
+                        $debitur_bpjs->is_active = true;
+                        $debitur_bpjs->is_default = true;
+                        $debitur_bpjs->save();
+                    }
+
                     $debitur_bpjs = new DebiturPasienModel();
                     $debitur_bpjs->id_person = $person->id_person;
-                    $debitur_bpjs->id_debitur = 1;
-                    $debitur_bpjs->no_member = $value->no_bpjs;
+                    $debitur_bpjs->id_debitur = 6;
+                    $debitur_bpjs->no_member = "";
                     $debitur_bpjs->is_active = true;
-                    $debitur_bpjs->is_default = true;
+                    $debitur_bpjs->is_default = false;
                     $debitur_bpjs->save();
+
+                    $alamat = new AlamatModel();
+                    $alamat->id_person = $person->id_person;
+                    $alamat->alamat_lengkap = $value->alamat;
+                    $alamat->is_active = true;
+                    $alamat->is_default = true;
+                    $alamat->user_created = 1;
+                    $alamat->time_created = date('Y-m-d H:i:s');
+                    $alamat->save();
+
+                    if(TRIM($value->hp)!= "-" OR TRIM($value->hp)!= "" OR $value->hp != null){
+                        $kontak = new KontakModel();
+                        $kontak->id_person = $person->id_person;
+                        $kontak->hand_phone = $value->hp;
+                        $kontak->is_active = true;
+                        $kontak->is_default = true;
+                        $kontak->user_created = 1;
+                        $kontak->time_created = date('Y-m-d H:i:s');
+                        $kontak->save();
+                    }
                 }
-
-                $debitur_bpjs = new DebiturPasienModel();
-                $debitur_bpjs->id_person = $person->id_person;
-                $debitur_bpjs->id_debitur = 6;
-                $debitur_bpjs->no_member = "";
-                $debitur_bpjs->is_active = true;
-                $debitur_bpjs->is_default = false;
-                $debitur_bpjs->save();
-
-                $alamat = new AlamatModel();
-                $alamat->id_person = $person->id_person;
-                $alamat->alamat_lengkap = $value->alamat;
-                $alamat->is_active = true;
-                $alamat->is_default = true;
-                $alamat->user_created = 1;
-                $alamat->time_created = date('Y-m-d H:i:s');
-                $alamat->save();
-
-                if(TRIM($value->hp)!= "-" OR TRIM($value->hp)!= "" OR $value->hp != null){
-                    $kontak = new KontakModel();
-                    $kontak->id_person = $person->id_person;
-                    $kontak->hand_phone = $value->hp;
-                    $kontak->is_active = true;
-                    $kontak->is_default = true;
-                    $kontak->user_created = 1;
-                    $kontak->time_created = date('Y-m-d H:i:s');
-                    $kontak->save();
-                }
+                
                 DB::commit();
             } catch (\Throwable $th) {
                 DB::rollback();
@@ -237,6 +243,18 @@ class ImportController extends Controller
                 $satuan->time_created = date('Y-m-d H:i:s');
                 $satuan->save();
             }
+            DB::commit();
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return $th;
+        }
+    }
+
+    public function import_kfa(){
+        set_time_limit(0);
+        DB::beginTransaction();
+        try {
+            
             DB::commit();
         } catch (\Throwable $th) {
             DB::rollback();

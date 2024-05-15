@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\malesNgodingController;
+use App\Http\Controllers\UpdateTarifController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,6 +20,8 @@ Route::get('/', function () {
 });
 
 Route::get('males_ngoding/{table}',[malesNgodingController::class,'males_ngoding']);
+
+Route::get('update_tarif_kelas1_semua',[UpdateTarifController::class,'update_tarif_jadi_kelas_1']);
 
 Route::get('males_ngoding_fnc', function () {
     return view('function');
