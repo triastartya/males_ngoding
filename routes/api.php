@@ -24,6 +24,5 @@ Route::post('response_fnc',[malesNgodingController::class,'tes_fnc']);
 Route::get('import/pasien',[ImportController::class,'pasien']);
 Route::get('import/obat',[ImportController::class,'obat']); 
 Route::get('import/groupsatuan',[ImportController::class,'group_satuan']); 
-Route::get('import/stok',[ImportController::class,'stok']); 
-
-
+Route::get('import/stok',[ImportController::class,'stok']);
+Route::get('import/stok_batch',[ImportController::class,'stok_batch']);

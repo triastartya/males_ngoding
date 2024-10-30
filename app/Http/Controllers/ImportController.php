@@ -6,6 +6,7 @@ use App\Models\AlamatModel;
 use App\Models\DebiturPasienModel;
 use App\Models\groupItemModel;
 use App\Models\kartuItemModel;
+use App\Models\kartuItemBatchModel;
 use App\Models\KontakModel;
 use App\Models\PasienModel;
 use App\Models\PersonModel;
@@ -15,6 +16,7 @@ use App\Models\setupObatDetailModel;
 use App\Models\setupObatModel;
 use App\Models\stokItemModel;
 use App\Models\tipePasienModel;
+use App\Models\stokItemEDModel;
 use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +28,12 @@ class ImportController extends Controller
     public function pasien(){
         set_time_limit(0);
         $data = DB::select("
-            SELECT * FROM maspasien order by username
+            SELECT * FROM maspasien order by no_rm
         ",[]);
         foreach ($data as $key => $value) {
             DB::beginTransaction();
             try {
-                $cek_pasien=PasienModel::where('no_rekam_medis',$value->username)->first();
+                $cek_pasien=PasienModel::where('no_rekam_medis',$value->no_rm)->first();
                 if($cek_pasien){
 
                 }else{
@@ -71,7 +73,7 @@ class ImportController extends Controller
 
                     $pasien = new PasienModel();
                     $pasien->id_person = $person->id_person;
-                    $pasien->no_rekam_medis = $value->username;
+                    $pasien->no_rekam_medis = $value->no_rm;
                     $pasien->visit_count = 0;
                     $pasien->save();
 
@@ -172,14 +174,26 @@ class ImportController extends Controller
         DB::beginTransaction();
         try {
             $data = DB::select("
-                select msi.id_item,a.stok,msi.hpp_average
-                from mm_setup_item msi inner join aastokobat a on msi.kode_item=a.kode_obat;
+                SELECT
+                    aa.id_item,
+                    SUM(aa.stok) AS total_stok,
+                    (SELECT harga_beli_terakhir
+                    FROM mm_setup_item msi
+                    WHERE msi.id_item = aa.id_item) AS harga_beli_terakhir
+                FROM
+                    aastokobat_batch_number aa
+                INNER JOIN
+                    mm_setup_item msi ON aa.id_item = msi.id_item
+                GROUP BY
+                    aa.id_item
+                ORDER BY
+                    aa.id_item;
             ",[]);
             foreach ($data as $key => $value) {
                 $stokItem = new stokItemModel();
                 $stokItem->id_item = $value->id_item;
-                $stokItem->id_stockroom = 2;
-                $stokItem->qty_on_hand = $value->stok;
+                $stokItem->id_stockroom = 1;
+                $stokItem->qty_on_hand = $value->total_stok;
                 $stokItem->qty_stok_kritis = 100;
                 $stokItem->save();
 
@@ -188,24 +202,100 @@ class ImportController extends Controller
                 $kartustok->bulan = date('m');
                 $kartustok->tanggal =date('Y-m-d');
                 $kartustok->id_item = $value->id_item;
-                $kartustok->id_stockroom = 2;
+                $kartustok->id_stockroom = 1;
                 $kartustok->nomor_ref_transaksi = "STOK AWAL";
                 $kartustok->id_header_transaksi = 1;
                 $kartustok->id_detail_transaksi = 1;
                 $kartustok->stok_awal = 0;
                 $kartustok->nominal_awal = 0;
-                $kartustok->stok_masuk = $value->stok;
-                $kartustok->nominal_masuk = $value->stok * $value->hpp_average;
+                $kartustok->stok_masuk = $value->total_stok;
+                $kartustok->nominal_masuk = $value->total_stok * $value->harga_beli_terakhir;
                 $kartustok->stok_keluar = 0;
                 $kartustok->nominal_keluar = 0;
-                $kartustok->stok_akhir = $value->stok;
-                $kartustok->nominal_akhir = $value->stok * $value->hpp_average;
+                $kartustok->stok_akhir = $value->total_stok;
+                $kartustok->nominal_akhir = $value->total_stok * $value->harga_beli_terakhir;
                 $kartustok->keterangan = "import";
                 $kartustok->user_inputed = 1;
                 $kartustok->time_inputed = date('Y-m-d H:i:s');
                 $kartustok->save();
             }
             
+            DB::commit();
+            dd($data);
+        } catch (\Throwable $th) {
+            DB::rollback();
+            return $th;
+        }
+    }
+
+    public function stok_batch(){
+        set_time_limit(0);
+        DB::beginTransaction();
+        try {
+            $data = DB::select("
+                select
+                    aa.id_item,
+                    aa.expire_date,
+                    aa.batch_number,
+                    aa.stok,
+                    aa.kode_item,
+                    msi.harga_beli_terakhir
+                from aastokobat_batch_number aa
+                inner join mm_setup_item msi on aa.id_item = msi.id_item;
+            ",[]);
+            foreach ($data as $key => $value) {
+                //stok item detail batch
+                $stokItemED = new stokItemEDModel();
+                $stokItemED->id_item = $value->id_item;
+                $stokItemED->id_stockroom = 1;
+                $stokItemED->batch_number = $value->batch_number;
+                $stokItemED->expired_date = $value->expire_date;
+                $stokItemED->qty_on_hand = $value->stok;
+                $stokItemED->barcode_batch_number = $value->stok;
+                $stokItemED->save();
+
+                //kartu stok item
+                $kartustok = new kartuItemModel();
+                $kartustok->tahun = date('Y');
+                $kartustok->bulan = date('m');
+                $kartustok->tanggal =date('Y-m-d');
+                $kartustok->id_item = $value->id_item;
+                $kartustok->id_stockroom = 1;
+                $kartustok->nomor_ref_transaksi = "STOK AWAL";
+                $kartustok->id_header_transaksi = 1;
+                $kartustok->id_detail_transaksi = 1;
+                $kartustok->stok_awal = 0;
+                $kartustok->nominal_awal = 0;
+                $kartustok->stok_masuk = $value->stok;
+                $kartustok->nominal_masuk = $value->stok * $value->harga_beli_terakhir;
+                $kartustok->stok_keluar = 0;
+                $kartustok->nominal_keluar = 0;
+                $kartustok->stok_akhir = $value->stok;
+                $kartustok->nominal_akhir = $value->stok * $value->harga_beli_terakhir;
+                $kartustok->keterangan = "import";
+                $kartustok->user_inputed = 1;
+                $kartustok->time_inputed = date('Y-m-d H:i:s');
+                $kartustok->save();
+
+                //kartu stok item detail batch
+                $kartustokbatch = new kartuItemBatchModel();
+                $kartustokbatch->id_kartu_stok_item = $kartustok->id_kartu_stok_item;
+                $kartustokbatch->tahun = date('Y');
+                $kartustokbatch->bulan = date('m');
+                $kartustokbatch->batch_number = $value->batch_number;
+                $kartustokbatch->expired_date = $value->expire_date;
+                $kartustokbatch->stok_awal = 0;
+                $kartustokbatch->nominal_awal = 0;
+                $kartustokbatch->stok_masuk = $value->stok;
+                $kartustokbatch->nominal_masuk = $value->stok * $value->harga_beli_terakhir;
+                $kartustokbatch->stok_keluar = 0;
+                $kartustokbatch->nominal_keluar = 0;
+                $kartustokbatch->stok_akhir = $value->stok;
+                $kartustokbatch->nominal_akhir = $value->stok * $value->harga_beli_terakhir;
+                $kartustokbatch->id_header_transaksi = 1;
+                $kartustokbatch->id_detail_transaksi = 1;
+                $kartustokbatch->save();
+            }
             DB::commit();
             dd($data);
         } catch (\Throwable $th) {
